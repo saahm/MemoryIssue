@@ -22,20 +22,33 @@ import spinal.core._
 class Top(initHexfile:String) extends Component {
   val io = new Bundle {
   }
-  val rtl = new RTLCore()
+  val valid = Reg(Bool) init(True)
+  val rdy = Bool
+  val addr = Reg(UInt(32 bits)) init(0)
+  val wdata = Reg(Bits(32 bits)) init(0)
+  val rdata = Bits(32 bits)
+  val sel = Reg(Bool) init(True)
+  val wr = Reg(Bool) init(False)
+
   val ram = new Memory(32,512,initHexfile)
 
-  // bus interconnect
-  rtl.io.sb <> ram.io.sb
+  ram.io.sb.SBvalid <> valid
+  ram.io.sb.SBready <> rdy
+  ram.io.sb.SBaddress <> addr
+  ram.io.sb.SBwdata <> wdata
+  ram.io.sb.SBrdata <> rdata
+  ram.io.sb.SBwrite <> wr
+  ram.io.sel <> sel
 
-  // memory mapping
-  val addressMapping = new Area{
-    val addr = rtl.io.sb.SBaddress
-    ram.io.sel := False
-    when(addr < 0x00000200){
-      ram.io.sel := True
+  val counter = new Area{
+    val c = Reg(UInt(32 bits)) init(0)
+    when(c === c.maxValue){
+      c := 0
+    }otherwise{
+      c := c + 1
     }
   }
+  addr := counter.c
 }
 
 //Generate the Memory's Verilog

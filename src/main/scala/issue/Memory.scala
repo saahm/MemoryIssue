@@ -21,8 +21,6 @@ package issue
 import spinal.core._
 import spinal.lib.slave
 
-import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
 
 class Memory(memoryWidth : Bits, wordCount : Int, initFile : String) extends Component {
   val io = new Bundle {
@@ -30,7 +28,7 @@ class Memory(memoryWidth : Bits, wordCount : Int, initFile : String) extends Com
     val sel = in Bool
   }
 
-  val mem = new Mem(memoryWidth, wordCount)
+  val mem = new Mem(Bits(32 bits), 512)
   val rdy = Reg(Bool) init(False)
   val read = io.sb.SBvalid && io.sel && !io.sb.SBwrite
   val write = io.sb.SBvalid && io.sel && io.sb.SBwrite
@@ -48,20 +46,21 @@ class Memory(memoryWidth : Bits, wordCount : Int, initFile : String) extends Com
   }
 
   intDBG := mem(B(0,9 bits).asUInt).resized
-  io.sb.SBrdata := 0
 
-  when(io.sel){
-    mem.write(
-      enable = write,
-      address = io.sb.SBaddress(8 downto 0),
-      data = io.sb.SBwdata
-    )
-    io.sb.SBrdata(5 downto 0) := mem.readSync(
-      enable = read,
-      address = io.sb.SBaddress(8 downto 0)
-    )
-    rdy := io.sb.SBvalid && io.sel
+//  io.sb.SBrdata := 0
+
+  mem.write(
+    enable = write,
+    address = io.sb.SBaddress(log2Up(wordCount)-1 downto 0),
+    data = io.sb.SBwdata
+  )
+  io.sb.SBrdata := mem.readSync(
+    enable = read,
+    address = io.sb.SBaddress(log2Up(wordCount)-1 downto 0)
+  )
+  rdy := False
+  when((read | write) & io.sel){
+    rdy := True
   }
-
   io.sb.SBready := rdy
 }
